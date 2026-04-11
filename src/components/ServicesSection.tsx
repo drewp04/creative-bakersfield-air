@@ -1,3 +1,4 @@
+import { openHCPModal } from "@/lib/hcp";
 import { Snowflake, Flame, Wrench, ShieldCheck, Wind, ThermometerSun } from "lucide-react";
 
 declare global {
@@ -92,7 +93,7 @@ const ServicesSection = () => {
               data-orgname="Creative-Air-Coniditioning-and-Heating"
               className="hcp-button inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded text-base text-white transition-all hover:opacity-90"
               style={{ background: "var(--gradient-fire)" }}
-              onClick={() => window.HCPWidget?.openModal()}
+              onClick={() => openHCPModal()}
             >
               Book a Service
             </button>

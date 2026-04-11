@@ -1,3 +1,4 @@
+import { openHCPModal } from "@/lib/hcp";
 import { Phone } from "lucide-react";
 import logo from "@/assets/logo.png";
 
@@ -68,7 +69,7 @@ const HeroSection = () => {
             data-orgname="Creative-Air-Coniditioning-and-Heating"
             className="hcp-button inline-flex items-center justify-center gap-3 px-8 py-4 rounded text-lg text-white transition-all hover:opacity-90 hover:scale-[1.02]"
             style={{ background: "var(--gradient-fire)" }}
-            onClick={() => window.HCPWidget?.openModal()}
+            onClick={() => openHCPModal()}
           >
             Book a Service Online
           </button>

@@ -1,3 +1,4 @@
+import { openHCPModal } from "@/lib/hcp";
 import { useState, useEffect } from "react";
 import { Phone, Menu, X } from "lucide-react";
 
@@ -23,12 +24,6 @@ const Navbar = () => {
 
   return (
     <>
-      {/* HouseCall Pro script */}
-      <script
-        async
-        src="https://online-booking.housecallpro.com/script.js?token=e62a04b6077d41d0924c161ec3bca8d7&orgName=Creative-Air-Coniditioning-and-Heating"
-      />
-
       <nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           scrolled
@@ -72,7 +67,7 @@ const Navbar = () => {
               data-orgname="Creative-Air-Coniditioning-and-Heating"
               className="hcp-button inline-flex items-center gap-2 px-5 py-2 rounded text-sm text-white transition-all hover:opacity-90"
               style={{ background: "var(--gradient-fire)" }}
-              onClick={() => window.HCPWidget?.openModal()}
+              onClick={() => openHCPModal()}
             >
               Book Online
             </button>
@@ -111,7 +106,7 @@ const Navbar = () => {
                 data-orgname="Creative-Air-Coniditioning-and-Heating"
                 className="hcp-button w-full py-2.5 rounded text-sm text-white"
                 style={{ background: "var(--gradient-fire)" }}
-                onClick={() => window.HCPWidget?.openModal()}
+                onClick={() => openHCPModal()}
               >
                 Book Online
               </button>
