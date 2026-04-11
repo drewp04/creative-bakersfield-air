@@ -20,7 +20,7 @@ const ContactSection = () => {
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-14">
           {[
-            { icon: Phone, label: "Call Us", value: "(661) 345-6450", href: "tel:6613456450", color: "#3B9EFF" },
+            { icon: Phone, label: "Text Us", value: "(661) 345-6450", href: "sms:6613456450", color: "#3B9EFF" },
             { icon: MapPin, label: "Location", value: "Bakersfield, CA", href: null, color: "#FF6A1A" },
             { icon: Clock, label: "Hours", value: "Mon–Sat: 7AM–7PM", href: null, color: "#3B9EFF" },
             { icon: Award, label: "License", value: "CA Lic. #929843", href: null, color: "#FF6A1A" },
@@ -77,12 +77,12 @@ const ContactSection = () => {
               Book Online Now
             </button>
             <a
-              href="tel:6613456450"
+              href="sms:6613456450"
               className="inline-flex items-center justify-center gap-3 px-10 py-4 rounded font-display text-lg uppercase tracking-wider border-2 transition-all hover:opacity-80"
               style={{ borderColor: "#3B9EFF", color: "#3B9EFF" }}
             >
               <Phone className="w-5 h-5" />
-              Call Now — Free Estimate
+              Text Us — Free Estimate
             </a>
           </div>
         </div>

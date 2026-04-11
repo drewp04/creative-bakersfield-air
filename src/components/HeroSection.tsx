@@ -73,7 +73,7 @@ const HeroSection = () => {
             Book a Service Online
           </button>
           <a
-            href="tel:6613456450"
+            href="sms:6613456450"
             className="inline-flex items-center justify-center gap-3 px-8 py-4 rounded font-display text-lg uppercase tracking-wider border-2 transition-all hover:scale-[1.02]"
             style={{ borderColor: "#3B9EFF", color: "#3B9EFF" }}
           >

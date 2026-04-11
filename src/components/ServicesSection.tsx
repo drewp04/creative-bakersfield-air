@@ -97,11 +97,11 @@ const ServicesSection = () => {
               Book a Service
             </button>
             <a
-              href="tel:6613456450"
+              href="sms:6613456450"
               className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded font-display text-base uppercase tracking-wider border transition-colors"
               style={{ borderColor: "#3B9EFF", color: "#3B9EFF" }}
             >
-              Call (661) 345-6450
+              Text (661) 345-6450
             </a>
           </div>
         </div>

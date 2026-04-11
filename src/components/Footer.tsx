@@ -16,7 +16,7 @@ const Footer = () => (
           <a href="#services" className="hover:text-foreground transition-colors">Services</a>
           <a href="#about" className="hover:text-foreground transition-colors">About</a>
           <a href="#contact" className="hover:text-foreground transition-colors">Contact</a>
-          <a href="tel:6613456450" className="hover:text-foreground transition-colors" style={{ color: "#3B9EFF" }}>
+          <a href="sms:6613456450" className="hover:text-foreground transition-colors" style={{ color: "#3B9EFF" }}>
             (661) 345-6450
           </a>
         </div>

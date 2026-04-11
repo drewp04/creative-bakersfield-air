@@ -60,12 +60,12 @@ const Navbar = () => {
           {/* Desktop CTAs */}
           <div className="hidden md:flex items-center gap-3">
             <a
-              href="tel:6613456450"
+              href="sms:6613456450"
               className="inline-flex items-center gap-2 px-4 py-2 rounded font-display text-sm uppercase tracking-wider border transition-colors"
               style={{ borderColor: "#3B9EFF", color: "#3B9EFF" }}
             >
               <Phone className="w-3.5 h-3.5" />
-              (661) 345-6450
+              Text Us
             </a>
             <button
               data-token="e62a04b6077d41d0924c161ec3bca8d7"
@@ -99,12 +99,12 @@ const Navbar = () => {
             ))}
             <div className="pt-2 flex flex-col gap-3">
               <a
-                href="tel:6613456450"
+                href="sms:6613456450"
                 className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded font-display text-sm uppercase tracking-wider border"
                 style={{ borderColor: "#3B9EFF", color: "#3B9EFF" }}
               >
                 <Phone className="w-4 h-4" />
-                (661) 345-6450
+                Text Us — (661) 345-6450
               </a>
               <button
                 data-token="e62a04b6077d41d0924c161ec3bca8d7"
