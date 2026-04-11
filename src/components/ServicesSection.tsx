@@ -1,41 +1,45 @@
 import { Snowflake, Flame, Wrench, ShieldCheck, Wind, ThermometerSun } from "lucide-react";
 
+declare global {
+  interface Window { HCPWidget: { openModal: () => void }; }
+}
+
 const services = [
   {
     icon: Snowflake,
     title: "AC Installation",
-    description: "Expert installation of energy-efficient air conditioning systems for maximum comfort.",
-    color: "primary",
+    description: "Expert installation of energy-efficient air conditioning systems sized right for your home.",
+    color: "blue",
   },
   {
     icon: Flame,
     title: "Heating Systems",
-    description: "Professional furnace and heating installation to keep you warm all winter.",
-    color: "secondary",
+    description: "Professional furnace and heating installation to keep your family warm all winter long.",
+    color: "orange",
   },
   {
     icon: Wrench,
     title: "Repairs",
-    description: "Fast, reliable repairs for all HVAC brands. We get your system running again quickly.",
-    color: "primary",
+    description: "Fast, reliable repairs for all HVAC brands. We diagnose it right and fix it the first time.",
+    color: "blue",
   },
   {
     icon: ShieldCheck,
     title: "Maintenance",
-    description: "Preventative maintenance plans to extend the life of your HVAC equipment.",
-    color: "secondary",
+    description: "Preventative tune-up plans that extend equipment life and catch problems before they cost you.",
+    color: "orange",
   },
   {
     icon: Wind,
     title: "Air Quality",
-    description: "Indoor air quality solutions including filtration, purification, and duct cleaning.",
-    color: "primary",
+    description: "Indoor air quality solutions — filtration, purification, and duct cleaning for cleaner air.",
+    color: "blue",
   },
   {
     icon: ThermometerSun,
     title: "Smart Thermostats",
-    description: "Smart thermostat installation for better control and energy savings.",
-    color: "secondary",
+    description: "Smart thermostat installation for better control, lower bills, and remote management.",
+    color: "orange",
   },
 ];
 
@@ -43,28 +47,63 @@ const ServicesSection = () => {
   return (
     <section id="services" className="py-24 px-4 bg-card">
       <div className="max-w-6xl mx-auto">
-        <h2 className="text-4xl md:text-5xl font-display font-bold text-center mb-4 uppercase tracking-wider text-foreground">
-          Our Services
-        </h2>
-        <div className="w-24 h-1 mx-auto mb-16 rounded-full" style={{ background: "var(--gradient-fire)" }} />
+        <div className="text-center mb-16">
+          <p className="font-display text-xs uppercase tracking-widest mb-3" style={{ color: "#3B9EFF" }}>
+            What We Do
+          </p>
+          <h2 className="font-display text-5xl md:text-6xl font-black uppercase text-foreground mb-4">
+            Our Services
+          </h2>
+          <div className="w-20 h-1 mx-auto rounded-full" style={{ background: "var(--gradient-dual)" }} />
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {services.map((service) => (
             <div
               key={service.title}
-              className="group p-8 rounded-xl border border-border bg-background hover:border-primary/50 transition-all duration-300"
+              className="group p-7 rounded-xl border border-border bg-background hover:border-opacity-80 transition-all duration-300 hover:-translate-y-1"
+              style={{ "--hover-color": service.color === "blue" ? "#3B9EFF" : "#FF6A1A" } as React.CSSProperties}
             >
-              <div className={`w-14 h-14 rounded-lg flex items-center justify-center mb-5 ${
-                service.color === "primary" ? "bg-primary/15 text-primary" : "bg-secondary/15 text-secondary"
-              }`}>
-                <service.icon className="w-7 h-7" />
+              <div
+                className="w-12 h-12 rounded-lg flex items-center justify-center mb-5"
+                style={{
+                  background: service.color === "blue" ? "rgba(59,158,255,0.12)" : "rgba(255,106,26,0.12)",
+                  color: service.color === "blue" ? "#3B9EFF" : "#FF6A1A",
+                }}
+              >
+                <service.icon className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-display font-semibold mb-3 uppercase tracking-wide text-foreground">
+              <h3 className="font-display text-xl font-bold uppercase tracking-wide text-foreground mb-3">
                 {service.title}
               </h3>
-              <p className="text-muted-foreground leading-relaxed">{service.description}</p>
+              <p className="text-muted-foreground leading-relaxed text-sm">{service.description}</p>
             </div>
           ))}
+        </div>
+
+        {/* CTA below services */}
+        <div className="text-center mt-14">
+          <p className="text-muted-foreground mb-5 font-body">
+            Not sure what you need? We'll diagnose it for free.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button
+              data-token="e62a04b6077d41d0924c161ec3bca8d7"
+              data-orgname="Creative-Air-Coniditioning-and-Heating"
+              className="hcp-button inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded text-base text-white transition-all hover:opacity-90"
+              style={{ background: "var(--gradient-fire)" }}
+              onClick={() => window.HCPWidget?.openModal()}
+            >
+              Book a Service
+            </button>
+            <a
+              href="tel:6613456450"
+              className="inline-flex items-center justify-center gap-2 px-8 py-3.5 rounded font-display text-base uppercase tracking-wider border transition-colors"
+              style={{ borderColor: "#3B9EFF", color: "#3B9EFF" }}
+            >
+              Call (661) 345-6450
+            </a>
+          </div>
         </div>
       </div>
     </section>
