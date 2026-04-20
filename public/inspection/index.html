@@ -177,6 +177,45 @@
   .status-btn.active[data-status="repair"] { background: var(--red); border-color: var(--red); color: white; }
   .status-btn.active[data-status="rec"] { background: var(--flame); border-color: var(--flame); color: white; }
 
+  /* Cost input */
+  .cost-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    background: #FFF7ED;
+    border: 1.5px solid var(--flame);
+    border-radius: 6px;
+    padding: 8px 10px;
+  }
+  .cost-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--flame);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .cost-prefix {
+    font-weight: 700;
+    color: var(--midnight);
+    font-size: 15px;
+  }
+  .cost-input {
+    flex: 1;
+    padding: 6px 10px;
+    font-size: 15px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: white;
+    font-family: inherit;
+    -webkit-appearance: none;
+    font-weight: 600;
+  }
+  .cost-input:focus {
+    outline: none;
+    border-color: var(--flame);
+  }
+
   /* Note + photo */
   .note-input {
     width: 100%;
@@ -501,7 +540,8 @@ async function loadChecklist() {
           .map(r => ({
             zone: r.Zone.trim(),
             item: r.Item.trim(),
-            status: (r.DefaultStatus || 'pass').toLowerCase().trim()
+            status: (r.DefaultStatus || 'pass').toLowerCase().trim(),
+            price: r.Price ? r.Price.replace(/[^0-9.]/g, '').trim() : ''
           }));
         if (CHECKLIST.length === 0) CHECKLIST = FALLBACK_CHECKLIST;
         renderChecklist();
@@ -529,7 +569,7 @@ function renderChecklist() {
   CHECKLIST.forEach((item, idx) => {
     if (!zones[item.zone]) zones[item.zone] = [];
     zones[item.zone].push({ ...item, idx });
-    ITEM_STATE[idx] = { status: item.status, note: '', photo: null };
+    ITEM_STATE[idx] = { status: item.status, note: '', photo: null, cost: '' };
   });
 
   Object.keys(zones).forEach(zoneName => {
@@ -539,6 +579,7 @@ function renderChecklist() {
     container.appendChild(zh);
 
     zones[zoneName].forEach(item => {
+      const needsCost = ['monitor', 'repair', 'rec'].includes(item.status);
       const div = document.createElement('div');
       div.className = 'check-item';
       div.innerHTML = `
@@ -550,6 +591,11 @@ function renderChecklist() {
           <button type="button" class="status-btn ${item.status === 'rec' ? 'active' : ''}" data-status="rec">Rec.</button>
         </div>
         <input type="text" class="note-input" placeholder="Notes (optional)" data-idx="${item.idx}">
+        <div class="cost-row" data-idx="${item.idx}" style="display:${needsCost ? 'flex' : 'none'}">
+          <span class="cost-label">Est. Cost</span>
+          <span class="cost-prefix">$</span>
+          <input type="number" inputmode="decimal" class="cost-input" placeholder="0" data-idx="${item.idx}">
+        </div>
         <div class="photo-row">
           <label class="photo-btn">
             📷 Photo
@@ -564,14 +610,27 @@ function renderChecklist() {
 
   document.getElementById('checklist-count').textContent = CHECKLIST.length + ' items';
 
-  // Wire up status buttons
+  // Wire up status buttons — also toggle cost field visibility
   container.querySelectorAll('.status-group').forEach(group => {
     group.addEventListener('click', (e) => {
       if (!e.target.classList.contains('status-btn')) return;
       group.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
       e.target.classList.add('active');
       const idx = group.dataset.idx;
-      ITEM_STATE[idx].status = e.target.dataset.status;
+      const newStatus = e.target.dataset.status;
+      ITEM_STATE[idx].status = newStatus;
+
+      // Show/hide cost field based on status
+      const costRow = container.querySelector(`.cost-row[data-idx="${idx}"]`);
+      if (costRow) {
+        costRow.style.display = ['monitor', 'repair', 'rec'].includes(newStatus) ? 'flex' : 'none';
+      }
+      // If switched back to pass, clear cost
+      if (newStatus === 'pass') {
+        ITEM_STATE[idx].cost = '';
+        const costInput = container.querySelector(`.cost-input[data-idx="${idx}"]`);
+        if (costInput) costInput.value = '';
+      }
     });
   });
 
@@ -579,6 +638,13 @@ function renderChecklist() {
   container.querySelectorAll('.note-input').forEach(input => {
     input.addEventListener('input', () => {
       ITEM_STATE[input.dataset.idx].note = input.value;
+    });
+  });
+
+  // Wire up cost inputs
+  container.querySelectorAll('.cost-input').forEach(input => {
+    input.addEventListener('input', () => {
+      ITEM_STATE[input.dataset.idx].cost = input.value;
     });
   });
 }
@@ -662,8 +728,10 @@ async function generatePDF() {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(13);
     doc.text('CREATIVE AIR', 36, 26);
+    // Measure actual width of "CREATIVE AIR" and place subtitle after it with padding
+    const brandW = doc.getTextWidth('CREATIVE AIR');
     doc.setTextColor(...ARCTIC);
-    doc.text('CONDITIONING & HEATING', 118, 26);
+    doc.text('CONDITIONING & HEATING', 36 + brandW + 8, 26);
     doc.setTextColor(...WHITE);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
@@ -816,6 +884,76 @@ async function generatePDF() {
           else if (s === 'monitor') data.cell.styles.textColor = YELLOW;
           else if (s === 'repair') data.cell.styles.textColor = RED;
           else data.cell.styles.textColor = FLAME;
+        }
+      },
+      margin: { left: 36, right: 36 }
+    });
+    y = doc.lastAutoTable.finalY + 10;
+  }
+
+  // ===== Findings & Recommended Actions =====
+  const findings = CHECKLIST
+    .map((item, idx) => ({ ...item, ...ITEM_STATE[idx] }))
+    .filter(it => ['repair', 'monitor', 'rec'].includes(it.status));
+
+  if (findings.length > 0) {
+    ensureSpace(80);
+    y += 6;
+    doc.setFillColor(...MIDNIGHT);
+    doc.rect(36, y, W - 72, 22, 'F');
+    doc.setTextColor(...WHITE);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('Findings & Recommended Actions', 46, y + 15);
+    y += 22;
+
+    // Sort: repair first, then monitor, then rec
+    const priorityOrder = { repair: 0, monitor: 1, rec: 2 };
+    findings.sort((a, b) => priorityOrder[a.status] - priorityOrder[b.status]);
+
+    let totalCost = 0;
+    const findingRows = findings.map(f => {
+      const priority = f.status === 'repair' ? 'REPAIR'
+        : f.status === 'monitor' ? 'MONITOR' : 'RECOMMEND';
+      const costNum = parseFloat(f.cost) || 0;
+      totalCost += costNum;
+      const costDisplay = f.cost ? '$' + costNum.toFixed(2).replace(/\.00$/, '') : '—';
+      return [priority, f.item, f.note || '—', costDisplay];
+    });
+
+    // Add total row if any costs entered
+    if (totalCost > 0) {
+      findingRows.push(['', '', 'TOTAL ESTIMATE', '$' + totalCost.toFixed(2).replace(/\.00$/, '')]);
+    }
+
+    doc.autoTable({
+      startY: y,
+      head: [['Priority', 'Finding', 'Recommendation', 'Est. Cost']],
+      body: findingRows,
+      theme: 'grid',
+      headStyles: { fillColor: LIGHT, textColor: MIDNIGHT, fontStyle: 'bold', fontSize: 9 },
+      bodyStyles: { fontSize: 9, textColor: MIDNIGHT },
+      columnStyles: {
+        0: { cellWidth: 70, halign: 'center', fontStyle: 'bold' },
+        1: { cellWidth: 140, fontStyle: 'bold' },
+        2: { cellWidth: 'auto' },
+        3: { cellWidth: 70, halign: 'right', fontStyle: 'bold' }
+      },
+      didParseCell: (data) => {
+        if (data.section === 'body' && data.column.index === 0) {
+          const s = findings[data.row.index]?.status;
+          if (s === 'repair') data.cell.styles.textColor = RED;
+          else if (s === 'monitor') data.cell.styles.textColor = YELLOW;
+          else if (s === 'rec') data.cell.styles.textColor = FLAME;
+        }
+        // Total row styling
+        if (data.section === 'body' && data.row.index === findingRows.length - 1 && totalCost > 0) {
+          data.cell.styles.fillColor = LIGHT;
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.textColor = MIDNIGHT;
+          if (data.column.index === 2 || data.column.index === 3) {
+            data.cell.styles.fontSize = 10;
+          }
         }
       },
       margin: { left: 36, right: 36 }
