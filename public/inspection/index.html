@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0F172A">
+<title>Creative Air — Field Inspection</title>
+
+<!-- jsPDF for client-side PDF generation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+<!-- PapaParse for Google Sheet CSV parsing -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+<style>
+  :root {
+    --arctic: #1E90D6;
+    --flame: #FF6A1A;
+    --midnight: #0F172A;
+    --slate: #475569;
+    --light-bg: #F1F5F9;
+    --border: #CBD5E1;
+    --green: #16A34A;
+    --yellow: #EAB308;
+    --red: #DC2626;
+    --white: #FFFFFF;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--light-bg);
+    color: var(--midnight);
+    font-size: 16px;
+    line-height: 1.4;
+    padding-bottom: 120px;
+  }
+
+  /* === Header === */
+  .app-header {
+    background: var(--midnight);
+    color: white;
+    padding: 16px 18px 14px;
+    border-bottom: 4px solid var(--flame);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .brand-name {
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: 0.5px;
+  }
+  .brand-sub {
+    color: var(--arctic);
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 1px;
+  }
+  .page-title {
+    font-size: 13px;
+    color: #94A3B8;
+    margin: 0;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  /* === Sections === */
+  .section {
+    background: white;
+    margin: 14px;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(15,23,42,0.08);
+  }
+  .section-head {
+    background: var(--arctic);
+    color: white;
+    padding: 10px 14px;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.3px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .section-head .count {
+    background: rgba(255,255,255,0.2);
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+  }
+  .section-body { padding: 14px; }
+
+  /* === Form fields === */
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--slate);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 5px;
+  }
+  .field input, .field textarea, .field select {
+    width: 100%;
+    padding: 11px 12px;
+    font-size: 16px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    background: white;
+    font-family: inherit;
+    color: var(--midnight);
+    -webkit-appearance: none;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus {
+    outline: none;
+    border-color: var(--arctic);
+    box-shadow: 0 0 0 3px rgba(30,144,214,0.15);
+  }
+  .field textarea { min-height: 60px; resize: vertical; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* === Checklist items === */
+  .check-item {
+    border-bottom: 1px solid var(--border);
+    padding: 12px 14px;
+  }
+  .check-item:last-child { border-bottom: none; }
+  .check-label {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 8px;
+    color: var(--midnight);
+  }
+  .zone-header {
+    background: var(--light-bg);
+    padding: 8px 14px;
+    font-weight: 700;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--slate);
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Status pills */
+  .status-group {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .status-btn {
+    padding: 9px 4px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    background: white;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--slate);
+  }
+  .status-btn.active[data-status="pass"] { background: var(--green); border-color: var(--green); color: white; }
+  .status-btn.active[data-status="monitor"] { background: var(--yellow); border-color: var(--yellow); color: var(--midnight); }
+  .status-btn.active[data-status="repair"] { background: var(--red); border-color: var(--red); color: white; }
+  .status-btn.active[data-status="rec"] { background: var(--flame); border-color: var(--flame); color: white; }
+
+  /* Note + photo */
+  .note-input {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    margin-top: 4px;
+    font-family: inherit;
+  }
+  .photo-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+  }
+  .photo-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: white;
+    border: 1.5px dashed var(--arctic);
+    color: var(--arctic);
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .photo-btn input { display: none; }
+  .photo-thumb {
+    width: 48px;
+    height: 48px;
+    border-radius: 6px;
+    background-size: cover;
+    background-position: center;
+    border: 2px solid var(--green);
+    position: relative;
+  }
+  .photo-thumb .x {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: var(--red);
+    color: white;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  /* === Fixed CTA bar === */
+  .cta-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--border);
+    z-index: 100;
+    box-shadow: 0 -4px 12px rgba(15,23,42,0.08);
+  }
+  .cta-btn {
+    width: 100%;
+    padding: 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: 0.3px;
+  }
+  .cta-primary { background: var(--flame); color: white; }
+  .cta-secondary { background: var(--midnight); color: white; }
+  .cta-btn:disabled { opacity: 0.5; }
+
+  /* Loading states */
+  .loading {
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--slate);
+    font-size: 14px;
+  }
+  .spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border);
+    border-top-color: var(--arctic);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    vertical-align: middle;
+    margin-right: 8px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--midnight);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 24px;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 200;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  }
+  .toast.show { opacity: 1; }
+
+  /* Config banner */
+  .config-banner {
+    background: #FEF3C7;
+    color: #78350F;
+    padding: 10px 14px;
+    font-size: 13px;
+    border-left: 4px solid var(--yellow);
+  }
+  .config-banner a { color: #78350F; font-weight: 700; }
+
+  @media (min-width: 600px) {
+    body { max-width: 600px; margin: 0 auto; background: var(--light-bg); }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="app-header">
+  <div class="brand">
+    <span class="brand-name">CREATIVE AIR</span>
+    <span class="brand-sub">CONDITIONING & HEATING</span>
+  </div>
+  <p class="page-title">Field Inspection Report</p>
+</header>
+
+<!-- Config banner (shows if sheet not configured) -->
+<div id="config-banner" class="config-banner" style="display:none">
+  ⚠️ Checklist template not configured. Using fallback checklist.
+  <a href="#" onclick="showConfigHelp(); return false;">Setup guide →</a>
+</div>
+
+<!-- Job info -->
+<section class="section">
+  <div class="section-head">Job Information</div>
+  <div class="section-body">
+    <div class="row">
+      <div class="field">
+        <label>Job / Invoice #</label>
+        <input type="text" id="job-num" placeholder="CA-2026-0001">
+      </div>
+      <div class="field">
+        <label>Date</label>
+        <input type="date" id="job-date">
+      </div>
+    </div>
+    <div class="field">
+      <label>Customer Name</label>
+      <input type="text" id="cust-name" placeholder="Jane Rodriguez">
+    </div>
+    <div class="field">
+      <label>Property Address</label>
+      <textarea id="cust-addr" placeholder="4217 Stockdale Hwy&#10;Bakersfield, CA 93309"></textarea>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>Customer Email</label>
+        <input type="email" id="cust-email" placeholder="jane@email.com">
+      </div>
+      <div class="field">
+        <label>Phone</label>
+        <input type="tel" id="cust-phone" placeholder="(661) 555-0123">
+      </div>
+    </div>
+    <div class="field">
+      <label>Technician</label>
+      <input type="text" id="tech-name" value="A. Perez" placeholder="Your name">
+    </div>
+  </div>
+</section>
+
+<!-- Equipment -->
+<section class="section">
+  <div class="section-head">Equipment</div>
+  <div class="section-body">
+    <div class="row">
+      <div class="field">
+        <label>Condenser Make/Model</label>
+        <input type="text" id="eq-cond" placeholder="Carrier 24ACC636">
+      </div>
+      <div class="field">
+        <label>Condenser Age</label>
+        <input type="text" id="eq-cond-age" placeholder="7 yrs">
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label>Furnace Make/Model</label>
+        <input type="text" id="eq-furn" placeholder="Carrier 58STA">
+      </div>
+      <div class="field">
+        <label>Furnace Age</label>
+        <input type="text" id="eq-furn-age" placeholder="7 yrs">
+      </div>
+    </div>
+    <div class="field">
+      <label>Thermostat</label>
+      <input type="text" id="eq-stat" placeholder="Honeywell T6 Pro">
+    </div>
+  </div>
+</section>
+
+<!-- Overall assessment -->
+<section class="section">
+  <div class="section-head">Overall Assessment</div>
+  <div class="section-body">
+    <div class="field">
+      <label>System Grade</label>
+      <select id="grade">
+        <option value="A">A — Excellent</option>
+        <option value="B+" selected>B+ — Good, minor service recommended</option>
+        <option value="B">B — Fair, some repairs needed</option>
+        <option value="C">C — Multiple repairs needed</option>
+        <option value="D">D — Major work required</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Technician Notes (customer-facing)</label>
+      <textarea id="tech-notes" rows="4" placeholder="Your system is running well. Today I..."></textarea>
+    </div>
+  </div>
+</section>
+
+<!-- Checklist (dynamic) -->
+<section class="section">
+  <div class="section-head">
+    Inspection Checklist
+    <span class="count" id="checklist-count">—</span>
+  </div>
+  <div id="checklist-container">
+    <div class="loading">
+      <span class="spinner"></span>Loading checklist…
+    </div>
+  </div>
+</section>
+
+<!-- Fixed CTA -->
+<div class="cta-bar">
+  <button class="cta-btn cta-primary" onclick="generatePDF('download')">📥 Download Report</button>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+/* =========================================================
+   CONFIG — replace with your Google Sheet "Publish to Web" CSV URL
+   Sheet columns: Zone | Item | DefaultStatus
+   ========================================================= */
+const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vT4_x3fEAAD6KFkhCRE4eQZfhbakvadbcgjNV2KOXeo3S63yEeAq9jDkP11rYb0LOKkXC0Lvbdaxorp/pub?gid=2018130301&single=true&output=csv';
+
+/* Fallback checklist used if sheet fails to load */
+const FALLBACK_CHECKLIST = [
+  { zone: 'Outdoor Unit', item: 'Refrigerant pressures within spec', status: 'pass' },
+  { zone: 'Outdoor Unit', item: 'Condenser coil condition', status: 'pass' },
+  { zone: 'Outdoor Unit', item: 'Capacitor microfarads in tolerance', status: 'pass' },
+  { zone: 'Outdoor Unit', item: 'Contactor condition', status: 'pass' },
+  { zone: 'Outdoor Unit', item: 'Compressor amp draw', status: 'pass' },
+  { zone: 'Outdoor Unit', item: 'Fan motor operation', status: 'pass' },
+  { zone: 'Outdoor Unit', item: 'Disconnect / electrical whip', status: 'pass' },
+  { zone: 'Indoor Unit', item: 'Evaporator coil inspection', status: 'pass' },
+  { zone: 'Indoor Unit', item: 'Blower motor amps', status: 'pass' },
+  { zone: 'Indoor Unit', item: 'Blower wheel condition', status: 'pass' },
+  { zone: 'Indoor Unit', item: 'Heat exchanger (visual)', status: 'pass' },
+  { zone: 'Indoor Unit', item: 'Gas valve & manifold pressure', status: 'pass' },
+  { zone: 'Indoor Unit', item: 'Flame sensor / ignitor', status: 'pass' },
+  { zone: 'Indoor Unit', item: 'Combustion CO levels', status: 'pass' },
+  { zone: 'Indoor Unit', item: 'Temperature split (cooling)', status: 'pass' },
+  { zone: 'Ductwork & Controls', item: 'Filter condition & size', status: 'pass' },
+  { zone: 'Ductwork & Controls', item: 'Visible duct connections sealed', status: 'pass' },
+  { zone: 'Ductwork & Controls', item: 'Static pressure reading', status: 'pass' },
+  { zone: 'Ductwork & Controls', item: 'Supply register airflow', status: 'pass' },
+  { zone: 'Ductwork & Controls', item: 'Thermostat calibration', status: 'pass' },
+  { zone: 'Ductwork & Controls', item: 'Condensate drain line clear', status: 'pass' }
+];
+
+let CHECKLIST = [];
+let ITEM_STATE = {};  // { idx: { status, note, photo (dataURL) } }
+
+// Init
+document.getElementById('job-date').valueAsDate = new Date();
+loadChecklist();
+
+/* ========== Load checklist from Google Sheet ========== */
+async function loadChecklist() {
+  if (!SHEET_CSV_URL || SHEET_CSV_URL.startsWith('REPLACE')) {
+    document.getElementById('config-banner').style.display = 'block';
+    CHECKLIST = FALLBACK_CHECKLIST;
+    renderChecklist();
+    return;
+  }
+  try {
+    Papa.parse(SHEET_CSV_URL, {
+      download: true,
+      header: true,
+      complete: (results) => {
+        CHECKLIST = results.data
+          .filter(r => r.Item && r.Zone)
+          .map(r => ({
+            zone: r.Zone.trim(),
+            item: r.Item.trim(),
+            status: (r.DefaultStatus || 'pass').toLowerCase().trim()
+          }));
+        if (CHECKLIST.length === 0) CHECKLIST = FALLBACK_CHECKLIST;
+        renderChecklist();
+      },
+      error: (err) => {
+        console.warn('Sheet load failed', err);
+        document.getElementById('config-banner').style.display = 'block';
+        CHECKLIST = FALLBACK_CHECKLIST;
+        renderChecklist();
+      }
+    });
+  } catch (e) {
+    CHECKLIST = FALLBACK_CHECKLIST;
+    renderChecklist();
+  }
+}
+
+/* ========== Render checklist ========== */
+function renderChecklist() {
+  const container = document.getElementById('checklist-container');
+  container.innerHTML = '';
+
+  // Group by zone
+  const zones = {};
+  CHECKLIST.forEach((item, idx) => {
+    if (!zones[item.zone]) zones[item.zone] = [];
+    zones[item.zone].push({ ...item, idx });
+    ITEM_STATE[idx] = { status: item.status, note: '', photo: null };
+  });
+
+  Object.keys(zones).forEach(zoneName => {
+    const zh = document.createElement('div');
+    zh.className = 'zone-header';
+    zh.textContent = zoneName;
+    container.appendChild(zh);
+
+    zones[zoneName].forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'check-item';
+      div.innerHTML = `
+        <div class="check-label">${escapeHtml(item.item)}</div>
+        <div class="status-group" data-idx="${item.idx}">
+          <button type="button" class="status-btn ${item.status === 'pass' ? 'active' : ''}" data-status="pass">Pass</button>
+          <button type="button" class="status-btn ${item.status === 'monitor' ? 'active' : ''}" data-status="monitor">Monitor</button>
+          <button type="button" class="status-btn ${item.status === 'repair' ? 'active' : ''}" data-status="repair">Repair</button>
+          <button type="button" class="status-btn ${item.status === 'rec' ? 'active' : ''}" data-status="rec">Rec.</button>
+        </div>
+        <input type="text" class="note-input" placeholder="Notes (optional)" data-idx="${item.idx}">
+        <div class="photo-row">
+          <label class="photo-btn">
+            📷 Photo
+            <input type="file" accept="image/*" capture="environment" data-idx="${item.idx}" onchange="handlePhoto(this)">
+          </label>
+          <div class="photo-preview" data-idx="${item.idx}"></div>
+        </div>
+      `;
+      container.appendChild(div);
+    });
+  });
+
+  document.getElementById('checklist-count').textContent = CHECKLIST.length + ' items';
+
+  // Wire up status buttons
+  container.querySelectorAll('.status-group').forEach(group => {
+    group.addEventListener('click', (e) => {
+      if (!e.target.classList.contains('status-btn')) return;
+      group.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      const idx = group.dataset.idx;
+      ITEM_STATE[idx].status = e.target.dataset.status;
+    });
+  });
+
+  // Wire up note inputs
+  container.querySelectorAll('.note-input').forEach(input => {
+    input.addEventListener('input', () => {
+      ITEM_STATE[input.dataset.idx].note = input.value;
+    });
+  });
+}
+
+/* ========== Photo handling ========== */
+async function handlePhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const idx = input.dataset.idx;
+  const dataUrl = await compressImage(file, 900, 0.7);
+  ITEM_STATE[idx].photo = dataUrl;
+
+  const preview = document.querySelector(`.photo-preview[data-idx="${idx}"]`);
+  preview.innerHTML = `
+    <div class="photo-thumb" style="background-image:url('${dataUrl}')">
+      <span class="x" onclick="removePhoto(${idx})">×</span>
+    </div>
+  `;
+}
+
+function removePhoto(idx) {
+  ITEM_STATE[idx].photo = null;
+  document.querySelector(`.photo-preview[data-idx="${idx}"]`).innerHTML = '';
+}
+
+function compressImage(file, maxDim, quality) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > height && width > maxDim) {
+          height = height * (maxDim / width);
+          width = maxDim;
+        } else if (height > maxDim) {
+          width = width * (maxDim / height);
+          height = maxDim;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ========== PDF generation ========== */
+async function generatePDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+
+  const W = doc.internal.pageSize.getWidth();
+  const H = doc.internal.pageSize.getHeight();
+
+  // Brand colors
+  const MIDNIGHT = [15, 23, 42];
+  const ARCTIC = [30, 144, 214];
+  const FLAME = [255, 106, 26];
+  const GREEN = [22, 163, 74];
+  const YELLOW = [234, 179, 8];
+  const RED = [220, 38, 38];
+  const SLATE = [71, 85, 105];
+  const LIGHT = [241, 245, 249];
+  const WHITE = [255, 255, 255];
+
+  let y = 0;
+
+  // ===== Page decoration function =====
+  function drawPageChrome() {
+    // Header
+    doc.setFillColor(...MIDNIGHT);
+    doc.rect(0, 0, W, 40, 'F');
+    doc.setFillColor(...FLAME);
+    doc.rect(0, 40, W, 4, 'F');
+    doc.setTextColor(...WHITE);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
+    doc.text('CREATIVE AIR', 36, 26);
+    doc.setTextColor(...ARCTIC);
+    doc.text('CONDITIONING & HEATING', 118, 26);
+    doc.setTextColor(...WHITE);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.text('HVAC INSPECTION REPORT', W - 36, 26, { align: 'right' });
+
+    // Footer
+    doc.setFillColor(...MIDNIGHT);
+    doc.rect(0, H - 32, W, 32, 'F');
+    doc.setFillColor(...FLAME);
+    doc.rect(0, H - 34, W, 2, 'F');
+    doc.setTextColor(...WHITE);
+    doc.setFontSize(8);
+    doc.text('Creative Air Conditioning & Heating  •  CA Lic. #929843  •  (661) 345-6450', 36, H - 18);
+    doc.text('creativeheatingcooling.com  •  info@creativeheatingcooling.com', 36, H - 8);
+    doc.text('Page ' + doc.internal.getNumberOfPages(), W - 36, H - 18, { align: 'right' });
+    doc.text('Serving Kern County, CA', W - 36, H - 8, { align: 'right' });
+  }
+
+  function ensureSpace(needed) {
+    if (y + needed > H - 50) {
+      doc.addPage();
+      drawPageChrome();
+      y = 60;
+    }
+  }
+
+  drawPageChrome();
+  y = 60;
+
+  // ===== Title =====
+  doc.setTextColor(...MIDNIGHT);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(22);
+  doc.text('Home HVAC Inspection Report', 36, y);
+  y += 18;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(...SLATE);
+  doc.text('Inspection performed on ' + formatDate(val('job-date')), 36, y);
+  y += 18;
+
+  // ===== Info block =====
+  doc.setFillColor(...LIGHT);
+  doc.rect(36, y, W - 72, 80, 'F');
+  doc.setDrawColor(203, 213, 225);
+  doc.rect(36, y, W - 72, 80);
+
+  doc.setTextColor(...MIDNIGHT);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.text('CUSTOMER', 48, y + 16);
+  doc.text('PROPERTY', 48, y + 44);
+  doc.text('JOB #', W / 2 + 10, y + 16);
+  doc.text('TECHNICIAN', W / 2 + 10, y + 44);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(val('cust-name') || '—', 48, y + 30);
+  const addrLines = (val('cust-addr') || '—').split('\n');
+  doc.text(addrLines, 48, y + 58);
+  doc.text(val('job-num') || '—', W / 2 + 10, y + 30);
+  doc.text(val('tech-name') || '—', W / 2 + 10, y + 58);
+
+  y += 96;
+
+  // ===== Grade card =====
+  const grade = val('grade');
+  const gradeColor = grade.startsWith('A') ? GREEN : grade.startsWith('B') ? GREEN : grade.startsWith('C') ? YELLOW : RED;
+  doc.setFillColor(...gradeColor);
+  doc.rect(36, y, 70, 60, 'F');
+  doc.setTextColor(...WHITE);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(26);
+  doc.text(grade, 71, y + 40, { align: 'center' });
+
+  doc.setFillColor(...WHITE);
+  doc.rect(106, y, W - 142, 60, 'F');
+  doc.setDrawColor(203, 213, 225);
+  doc.rect(36, y, W - 72, 60);
+
+  doc.setTextColor(...MIDNIGHT);
+  doc.setFontSize(12);
+  doc.text('Overall System Health', 118, y + 22);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(...SLATE);
+  const summary = buildSummaryText();
+  doc.text(doc.splitTextToSize(summary, W - 160), 118, y + 36);
+
+  y += 76;
+
+  // ===== Equipment table =====
+  const eqRows = [
+    ['Outdoor Condenser', val('eq-cond') || '—', val('eq-cond-age') || '—'],
+    ['Gas Furnace', val('eq-furn') || '—', val('eq-furn-age') || '—'],
+    ['Thermostat', val('eq-stat') || '—', '—']
+  ];
+  doc.autoTable({
+    startY: y,
+    head: [['Component', 'Make / Model', 'Age']],
+    body: eqRows,
+    theme: 'grid',
+    headStyles: { fillColor: MIDNIGHT, textColor: WHITE, fontStyle: 'bold', fontSize: 9 },
+    bodyStyles: { fontSize: 9, textColor: MIDNIGHT },
+    alternateRowStyles: { fillColor: LIGHT },
+    margin: { left: 36, right: 36 }
+  });
+  y = doc.lastAutoTable.finalY + 16;
+
+  // ===== Checklist by zone =====
+  const zones = {};
+  CHECKLIST.forEach((item, idx) => {
+    if (!zones[item.zone]) zones[item.zone] = [];
+    zones[item.zone].push({ ...item, idx, ...ITEM_STATE[idx] });
+  });
+
+  for (const zoneName of Object.keys(zones)) {
+    ensureSpace(60);
+    doc.setFillColor(...ARCTIC);
+    doc.rect(36, y, W - 72, 22, 'F');
+    doc.setTextColor(...WHITE);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text(zoneName, 46, y + 15);
+    y += 22;
+
+    const rows = zones[zoneName].map(it => [
+      statusLabel(it.status),
+      it.item,
+      it.note || '—'
+    ]);
+
+    doc.autoTable({
+      startY: y,
+      head: [['Status', 'Inspection Point', 'Notes']],
+      body: rows,
+      theme: 'grid',
+      headStyles: { fillColor: LIGHT, textColor: MIDNIGHT, fontStyle: 'bold', fontSize: 9 },
+      bodyStyles: { fontSize: 9, textColor: MIDNIGHT },
+      columnStyles: {
+        0: { cellWidth: 65, halign: 'center', fontStyle: 'bold' },
+        1: { cellWidth: 200 },
+        2: { cellWidth: 'auto' }
+      },
+      didParseCell: (data) => {
+        if (data.section === 'body' && data.column.index === 0) {
+          const s = zones[zoneName][data.row.index].status;
+          if (s === 'pass') data.cell.styles.textColor = GREEN;
+          else if (s === 'monitor') data.cell.styles.textColor = YELLOW;
+          else if (s === 'repair') data.cell.styles.textColor = RED;
+          else data.cell.styles.textColor = FLAME;
+        }
+      },
+      margin: { left: 36, right: 36 }
+    });
+    y = doc.lastAutoTable.finalY + 10;
+  }
+
+  // ===== Photo gallery =====
+  const photos = CHECKLIST
+    .map((item, idx) => ({ ...item, ...ITEM_STATE[idx] }))
+    .filter(it => it.photo);
+
+  if (photos.length > 0) {
+    doc.addPage();
+    drawPageChrome();
+    y = 60;
+    doc.setFillColor(...ARCTIC);
+    doc.rect(36, y, W - 72, 22, 'F');
+    doc.setTextColor(...WHITE);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('Photo Documentation', 46, y + 15);
+    y += 32;
+
+    const photoW = (W - 72 - 16) / 2;
+    const photoH = 140;
+    let col = 0;
+
+    photos.forEach(p => {
+      if (y + photoH + 30 > H - 50) {
+        doc.addPage();
+        drawPageChrome();
+        y = 60;
+        col = 0;
+      }
+      const x = 36 + col * (photoW + 16);
+      try {
+        doc.addImage(p.photo, 'JPEG', x, y, photoW, photoH);
+      } catch (e) { console.warn('Photo failed', e); }
+      doc.setFontSize(8);
+      doc.setTextColor(...SLATE);
+      doc.setFont('helvetica', 'bold');
+      const caption = doc.splitTextToSize(p.item, photoW);
+      doc.text(caption, x, y + photoH + 12);
+
+      col++;
+      if (col === 2) {
+        col = 0;
+        y += photoH + 30;
+      }
+    });
+    if (col === 1) y += photoH + 30;
+  }
+
+  // ===== Tech notes =====
+  const notes = val('tech-notes');
+  if (notes) {
+    ensureSpace(80);
+    doc.setFillColor(...LIGHT);
+    const noteLines = doc.splitTextToSize(notes, W - 110);
+    const noteH = 28 + noteLines.length * 12;
+    doc.rect(36, y, W - 72, noteH, 'F');
+    doc.setFillColor(...FLAME);
+    doc.rect(36, y, 4, noteH, 'F');
+    doc.setTextColor(...MIDNIGHT);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('Technician Notes', 50, y + 16);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(noteLines, 50, y + 32);
+    y += noteH + 12;
+  }
+
+  // ===== CTA =====
+  ensureSpace(50);
+  doc.setFillColor(...FLAME);
+  doc.rect(36, y, W - 72, 40, 'F');
+  doc.setTextColor(...WHITE);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.text('Ready to schedule? Text (661) 345-6450', W / 2, y + 25, { align: 'center' });
+
+  // ===== Output =====
+  const filename = `CreativeAir_Inspection_${val('cust-name').replace(/\s+/g, '_') || 'Customer'}_${val('job-date')}.pdf`;
+
+  doc.save(filename);
+  showToast('PDF downloaded');
+}
+
+/* ========== Helpers ========== */
+function val(id) { return document.getElementById(id).value || ''; }
+
+function formatDate(d) {
+  if (!d) return new Date().toLocaleDateString();
+  return new Date(d + 'T12:00:00').toLocaleDateString('en-US', {
+    month: 'long', day: 'numeric', year: 'numeric'
+  });
+}
+
+function statusLabel(s) {
+  return { pass: '● Pass', monitor: '● Monitor', repair: '● Repair', rec: '● Rec.' }[s] || '●';
+}
+
+function buildSummaryText() {
+  const counts = { pass: 0, monitor: 0, repair: 0, rec: 0 };
+  Object.values(ITEM_STATE).forEach(s => { counts[s.status] = (counts[s.status] || 0) + 1; });
+  const parts = [];
+  if (counts.repair) parts.push(`${counts.repair} repair${counts.repair > 1 ? 's' : ''} needed`);
+  if (counts.monitor) parts.push(`${counts.monitor} to monitor`);
+  if (counts.rec) parts.push(`${counts.rec} recommendation${counts.rec > 1 ? 's' : ''}`);
+  const passMsg = `${counts.pass} of ${CHECKLIST.length} items passed inspection.`;
+  return parts.length ? passMsg + ' ' + parts.join(', ') + '.' : passMsg + ' No issues found.';
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function showConfigHelp() {
+  alert(
+    'SETUP:\n\n' +
+    '1. Create a Google Sheet with columns: Zone | Item | DefaultStatus\n' +
+    '2. File → Share → Publish to web → select the sheet tab → CSV format → Publish\n' +
+    '3. Copy the URL and replace SHEET_CSV_URL at the top of this file\n' +
+    '4. Redeploy\n\n' +
+    'DefaultStatus values: pass, monitor, repair, rec'
+  );
+}
+</script>
+</body>
+</html>
