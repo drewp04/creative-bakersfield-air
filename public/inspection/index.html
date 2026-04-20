@@ -754,25 +754,25 @@ async function generatePDF() {
     if (y + needed > H - 50) {
       doc.addPage();
       drawPageChrome();
-      y = 60;
+      y = 80;
     }
   }
 
   drawPageChrome();
-  y = 60;
+  y = 80;
 
   // ===== Title =====
   doc.setTextColor(...MIDNIGHT);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(22);
   doc.text('Home HVAC Inspection Report', 36, y);
-  y += 18;
+  y += 22;
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(...SLATE);
   doc.text('Inspection performed on ' + formatDate(val('job-date')), 36, y);
-  y += 18;
+  y += 22;
 
   // ===== Info block =====
   doc.setFillColor(...LIGHT);
@@ -873,7 +873,7 @@ async function generatePDF() {
       headStyles: { fillColor: LIGHT, textColor: MIDNIGHT, fontStyle: 'bold', fontSize: 9 },
       bodyStyles: { fontSize: 9, textColor: MIDNIGHT },
       columnStyles: {
-        0: { cellWidth: 65, halign: 'center', fontStyle: 'bold' },
+        0: { cellWidth: 60, halign: 'center', fontStyle: 'bold', fontSize: 8 },
         1: { cellWidth: 200 },
         2: { cellWidth: 'auto' }
       },
@@ -969,43 +969,50 @@ async function generatePDF() {
   if (photos.length > 0) {
     doc.addPage();
     drawPageChrome();
-    y = 60;
+    y = 80;
     doc.setFillColor(...ARCTIC);
     doc.rect(36, y, W - 72, 22, 'F');
     doc.setTextColor(...WHITE);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
     doc.text('Photo Documentation', 46, y + 15);
-    y += 32;
+    y += 34;
 
-    const photoW = (W - 72 - 16) / 2;
-    const photoH = 140;
+    // Constrain photos: max 2 per row, capped at reasonable print size
+    const gutter = 20;
+    const maxPhotoW = 240;  // Cap width so photos don't stretch
+    const photoW = Math.min(maxPhotoW, (W - 72 - gutter) / 2);
+    const photoH = photoW * 0.75;  // 4:3 aspect ratio container
+    const colSpacing = photoW + gutter;
+    const totalRowW = (photoW * 2) + gutter;
+    const leftMargin = (W - totalRowW) / 2;  // Center the grid
     let col = 0;
 
     photos.forEach(p => {
-      if (y + photoH + 30 > H - 50) {
+      if (y + photoH + 34 > H - 50) {
         doc.addPage();
         drawPageChrome();
-        y = 60;
+        y = 80;
         col = 0;
       }
-      const x = 36 + col * (photoW + 16);
+      const x = leftMargin + col * colSpacing;
       try {
-        doc.addImage(p.photo, 'JPEG', x, y, photoW, photoH);
+        // Use 'FAST' compression and preserve aspect by fitting to box
+        doc.addImage(p.photo, 'JPEG', x, y, photoW, photoH, undefined, 'FAST');
       } catch (e) { console.warn('Photo failed', e); }
       doc.setFontSize(8);
       doc.setTextColor(...SLATE);
       doc.setFont('helvetica', 'bold');
       const caption = doc.splitTextToSize(p.item, photoW);
-      doc.text(caption, x, y + photoH + 12);
+      doc.text(caption, x, y + photoH + 14);
 
       col++;
       if (col === 2) {
         col = 0;
-        y += photoH + 30;
+        y += photoH + 36;
       }
     });
-    if (col === 1) y += photoH + 30;
+    if (col === 1) y += photoH + 36;
   }
 
   // ===== Tech notes =====
@@ -1055,7 +1062,7 @@ function formatDate(d) {
 }
 
 function statusLabel(s) {
-  return { pass: '● Pass', monitor: '● Monitor', repair: '● Repair', rec: '● Rec.' }[s] || '●';
+  return { pass: 'PASS', monitor: 'MONITOR', repair: 'REPAIR', rec: 'REC' }[s] || '—';
 }
 
 function buildSummaryText() {
