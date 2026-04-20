@@ -572,18 +572,20 @@ function renderChecklist() {
     ITEM_STATE[idx] = { status: item.status, note: '', photo: null, cost: '' };
   });
 
-  Object.keys(zones).forEach(zoneName => {
+  Object.keys(zones).forEach((zoneName, zoneIdx) => {
+    const sectionNum = zoneIdx + 1;
     const zh = document.createElement('div');
     zh.className = 'zone-header';
-    zh.textContent = zoneName;
+    zh.innerHTML = `<span style="color: var(--flame); font-weight: 800;">SECTION ${sectionNum}</span> &nbsp;·&nbsp; ${escapeHtml(zoneName)}`;
     container.appendChild(zh);
 
-    zones[zoneName].forEach(item => {
+    zones[zoneName].forEach((item, itemIdx) => {
+      const refNum = `${sectionNum}.${itemIdx + 1}`;
       const needsCost = ['monitor', 'repair', 'rec'].includes(item.status);
       const div = document.createElement('div');
       div.className = 'check-item';
       div.innerHTML = `
-        <div class="check-label">${escapeHtml(item.item)}</div>
+        <div class="check-label"><span style="color: var(--slate); font-weight: 700; margin-right: 6px;">${refNum}</span>${escapeHtml(item.item)}</div>
         <div class="status-group" data-idx="${item.idx}">
           <button type="button" class="status-btn ${item.status === 'pass' ? 'active' : ''}" data-status="pass">Pass</button>
           <button type="button" class="status-btn ${item.status === 'monitor' ? 'active' : ''}" data-status="monitor">Monitor</button>
@@ -718,7 +720,8 @@ async function generatePDF() {
   let y = 0;
 
   // ===== Page decoration function =====
-  function drawPageChrome() {
+  function drawPageChrome(skipChrome) {
+    if (skipChrome) return;
     // Header
     doc.setFillColor(...MIDNIGHT);
     doc.rect(0, 0, W, 40, 'F');
@@ -728,7 +731,6 @@ async function generatePDF() {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(13);
     doc.text('CREATIVE AIR', 36, 26);
-    // Measure actual width of "CREATIVE AIR" and place subtitle after it with padding
     const brandW = doc.getTextWidth('CREATIVE AIR');
     doc.setTextColor(...ARCTIC);
     doc.text('CONDITIONING & HEATING', 36 + brandW + 8, 26);
@@ -758,14 +760,126 @@ async function generatePDF() {
     }
   }
 
+  // ============ COVER PAGE ============
+  drawPageChrome(true);  // Skip normal header/footer on cover
+  y = 60;
+
+  // Thin accent bar at top
+  doc.setFillColor(...FLAME);
+  doc.rect(0, 0, W, 8, 'F');
+
+  // === Logo placeholder (text-based, swap with image later) ===
+  // Outer frame (dark, like the logo's dark background)
+  const logoBoxY = 80;
+  const logoBoxH = 150;
+  doc.setFillColor(...MIDNIGHT);
+  doc.roundedRect(72, logoBoxY, W - 144, logoBoxH, 6, 6, 'F');
+
+  // "CREATIVE" — big bold, arctic/flame gradient feel (we'll approximate with two tones)
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(42);
+  doc.setTextColor(...ARCTIC);
+  doc.text('CREATIVE', W / 2, logoBoxY + 70, { align: 'center' });
+
+  // "HEATING & AIR" — medium, flame color
+  doc.setFontSize(16);
+  doc.setTextColor(...FLAME);
+  doc.text('HEATING & AIR', W / 2, logoBoxY + 95, { align: 'center' });
+
+  // License + phone
+  doc.setFontSize(10);
+  doc.setTextColor(...WHITE);
+  doc.setFont('helvetica', 'normal');
+  doc.text('LIC. #929843  •  (661) 345-6450', W / 2, logoBoxY + 120, { align: 'center' });
+
+  y = logoBoxY + logoBoxH + 60;
+
+  // === Report title ===
+  doc.setTextColor(...MIDNIGHT);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(32);
+  doc.text('HVAC', W / 2, y, { align: 'center' });
+  doc.setTextColor(...ARCTIC);
+  doc.text('INSPECTION REPORT', W / 2, y + 36, { align: 'center' });
+  y += 70;
+
+  // Divider line with orange accent
+  doc.setDrawColor(...FLAME);
+  doc.setLineWidth(2);
+  doc.line(W / 2 - 40, y, W / 2 + 40, y);
+  doc.setLineWidth(0.5);
+  y += 32;
+
+  // === Customer info block (clean, centered) ===
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(...SLATE);
+  doc.text('PREPARED FOR', W / 2, y, { align: 'center' });
+  y += 18;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.setTextColor(...MIDNIGHT);
+  doc.text(val('cust-name') || 'Customer Name', W / 2, y, { align: 'center' });
+  y += 18;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(...SLATE);
+  const coverAddrLines = (val('cust-addr') || 'Property Address').split('\n');
+  coverAddrLines.forEach(line => {
+    doc.text(line, W / 2, y, { align: 'center' });
+    y += 13;
+  });
+
+  y += 20;
+
+  // === Inspection details row ===
+  const detailsY = y;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...SLATE);
+  doc.text('INSPECTION DATE', W / 4, detailsY, { align: 'center' });
+  doc.text('JOB NUMBER', W / 2, detailsY, { align: 'center' });
+  doc.text('TECHNICIAN', (W / 4) * 3, detailsY, { align: 'center' });
+
+  doc.setFontSize(11);
+  doc.setTextColor(...MIDNIGHT);
+  doc.text(formatDate(val('job-date')), W / 4, detailsY + 16, { align: 'center' });
+  doc.text(val('job-num') || '—', W / 2, detailsY + 16, { align: 'center' });
+  doc.text(val('tech-name') || '—', (W / 4) * 3, detailsY + 16, { align: 'center' });
+
+  // === Bottom callout bar ===
+  const bottomBarY = H - 120;
+  doc.setFillColor(...MIDNIGHT);
+  doc.rect(0, bottomBarY, W, 88, 'F');
+  doc.setFillColor(...FLAME);
+  doc.rect(0, bottomBarY - 4, W, 4, 'F');
+
+  doc.setTextColor(...WHITE);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.text('PROFESSIONAL HVAC INSPECTION', W / 2, bottomBarY + 22, { align: 'center' });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(203, 213, 225);
+  doc.text('Serving Kern County, California  •  Licensed, Bonded & Insured', W / 2, bottomBarY + 40, { align: 'center' });
+
+  doc.setTextColor(...WHITE);
+  doc.setFontSize(10);
+  doc.text('creativeheatingcooling.com  •  info@creativeheatingcooling.com  •  (661) 345-6450', W / 2, bottomBarY + 62, { align: 'center' });
+
+  // ============ PAGE 2 — REPORT CONTENT STARTS ============
+  doc.addPage();
   drawPageChrome();
   y = 80;
 
-  // ===== Title =====
+  // Page 2 title
   doc.setTextColor(...MIDNIGHT);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
-  doc.text('Home HVAC Inspection Report', 36, y);
+  doc.setFontSize(20);
+  doc.text('Inspection Summary', 36, y);
   y += 22;
 
   doc.setFont('helvetica', 'normal');
@@ -849,17 +963,33 @@ async function generatePDF() {
     zones[item.zone].push({ ...item, idx, ...ITEM_STATE[idx] });
   });
 
+  // Build section numbering map: idx → "1.1", "2.3", etc.
+  const sectionMap = {};  // idx -> "X.Y"
+  const zoneSections = {};  // zoneName -> "Section N"
+  let sectionNum = 0;
+  for (const zoneName of Object.keys(zones)) {
+    sectionNum++;
+    zoneSections[zoneName] = sectionNum;
+    zones[zoneName].forEach((it, itemIdx) => {
+      sectionMap[it.idx] = `${sectionNum}.${itemIdx + 1}`;
+    });
+  }
+
   for (const zoneName of Object.keys(zones)) {
     ensureSpace(60);
+    const secNum = zoneSections[zoneName];
     doc.setFillColor(...ARCTIC);
-    doc.rect(36, y, W - 72, 22, 'F');
+    doc.rect(36, y, W - 72, 24, 'F');
     doc.setTextColor(...WHITE);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text(zoneName, 46, y + 15);
-    y += 22;
+    doc.setFontSize(9);
+    doc.text(`SECTION ${secNum}`, 46, y + 10);
+    doc.setFontSize(12);
+    doc.text(zoneName, 46, y + 20);
+    y += 24;
 
     const rows = zones[zoneName].map(it => [
+      sectionMap[it.idx],
       statusLabel(it.status),
       it.item,
       it.note || '—'
@@ -867,18 +997,19 @@ async function generatePDF() {
 
     doc.autoTable({
       startY: y,
-      head: [['Status', 'Inspection Point', 'Notes']],
+      head: [['#', 'Status', 'Inspection Point', 'Notes']],
       body: rows,
       theme: 'grid',
       headStyles: { fillColor: LIGHT, textColor: MIDNIGHT, fontStyle: 'bold', fontSize: 9 },
       bodyStyles: { fontSize: 9, textColor: MIDNIGHT },
       columnStyles: {
-        0: { cellWidth: 60, halign: 'center', fontStyle: 'bold', fontSize: 8 },
-        1: { cellWidth: 200 },
-        2: { cellWidth: 'auto' }
+        0: { cellWidth: 30, halign: 'center', fontStyle: 'bold', textColor: SLATE },
+        1: { cellWidth: 55, halign: 'center', fontStyle: 'bold', fontSize: 8 },
+        2: { cellWidth: 180 },
+        3: { cellWidth: 'auto' }
       },
       didParseCell: (data) => {
-        if (data.section === 'body' && data.column.index === 0) {
+        if (data.section === 'body' && data.column.index === 1) {
           const s = zones[zoneName][data.row.index].status;
           if (s === 'pass') data.cell.styles.textColor = GREEN;
           else if (s === 'monitor') data.cell.styles.textColor = YELLOW;
@@ -893,7 +1024,7 @@ async function generatePDF() {
 
   // ===== Findings & Recommended Actions =====
   const findings = CHECKLIST
-    .map((item, idx) => ({ ...item, ...ITEM_STATE[idx] }))
+    .map((item, idx) => ({ ...item, idx, ...ITEM_STATE[idx] }))
     .filter(it => ['repair', 'monitor', 'rec'].includes(it.status));
 
   if (findings.length > 0) {
@@ -918,29 +1049,31 @@ async function generatePDF() {
       const costNum = parseFloat(f.cost) || 0;
       totalCost += costNum;
       const costDisplay = f.cost ? '$' + costNum.toFixed(2).replace(/\.00$/, '') : '—';
-      return [priority, f.item, f.note || '—', costDisplay];
+      const ref = sectionMap[f.idx] || '';
+      return [ref, priority, f.item, f.note || '—', costDisplay];
     });
 
     // Add total row if any costs entered
     if (totalCost > 0) {
-      findingRows.push(['', '', 'TOTAL ESTIMATE', '$' + totalCost.toFixed(2).replace(/\.00$/, '')]);
+      findingRows.push(['', '', '', 'TOTAL ESTIMATE', '$' + totalCost.toFixed(2).replace(/\.00$/, '')]);
     }
 
     doc.autoTable({
       startY: y,
-      head: [['Priority', 'Finding', 'Recommendation', 'Est. Cost']],
+      head: [['Ref #', 'Priority', 'Finding', 'Recommendation', 'Est. Cost']],
       body: findingRows,
       theme: 'grid',
       headStyles: { fillColor: LIGHT, textColor: MIDNIGHT, fontStyle: 'bold', fontSize: 9 },
       bodyStyles: { fontSize: 9, textColor: MIDNIGHT },
       columnStyles: {
-        0: { cellWidth: 70, halign: 'center', fontStyle: 'bold' },
-        1: { cellWidth: 140, fontStyle: 'bold' },
-        2: { cellWidth: 'auto' },
-        3: { cellWidth: 70, halign: 'right', fontStyle: 'bold' }
+        0: { cellWidth: 36, halign: 'center', fontStyle: 'bold', textColor: SLATE },
+        1: { cellWidth: 62, halign: 'center', fontStyle: 'bold' },
+        2: { cellWidth: 120, fontStyle: 'bold' },
+        3: { cellWidth: 'auto' },
+        4: { cellWidth: 60, halign: 'right', fontStyle: 'bold' }
       },
       didParseCell: (data) => {
-        if (data.section === 'body' && data.column.index === 0) {
+        if (data.section === 'body' && data.column.index === 1) {
           const s = findings[data.row.index]?.status;
           if (s === 'repair') data.cell.styles.textColor = RED;
           else if (s === 'monitor') data.cell.styles.textColor = YELLOW;
@@ -951,7 +1084,7 @@ async function generatePDF() {
           data.cell.styles.fillColor = LIGHT;
           data.cell.styles.fontStyle = 'bold';
           data.cell.styles.textColor = MIDNIGHT;
-          if (data.column.index === 2 || data.column.index === 3) {
+          if (data.column.index === 3 || data.column.index === 4) {
             data.cell.styles.fontSize = 10;
           }
         }
@@ -963,7 +1096,7 @@ async function generatePDF() {
 
   // ===== Photo gallery =====
   const photos = CHECKLIST
-    .map((item, idx) => ({ ...item, ...ITEM_STATE[idx] }))
+    .map((item, idx) => ({ ...item, idx, ...ITEM_STATE[idx] }))
     .filter(it => it.photo);
 
   if (photos.length > 0) {
@@ -1003,7 +1136,9 @@ async function generatePDF() {
       doc.setFontSize(8);
       doc.setTextColor(...SLATE);
       doc.setFont('helvetica', 'bold');
-      const caption = doc.splitTextToSize(p.item, photoW);
+      const ref = sectionMap[p.idx] || '';
+      const captionText = ref ? `${ref}  ${p.item}` : p.item;
+      const caption = doc.splitTextToSize(captionText, photoW);
       doc.text(caption, x, y + photoH + 14);
 
       col++;
